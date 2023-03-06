@@ -12,6 +12,8 @@ class GraphDataset(Dataset):
         super(GraphDataset, self).__init__(root, transform, pre_transform)
         # self.data, self.slices = torch.load(self.processed_paths[0])
         self.processed_dir = os.path.join(self.root, "ml_data", self.model_name)
+        if not self.is_processed:
+            self.process()
 
     @property
     def processed_file_names(self):

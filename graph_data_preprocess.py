@@ -83,15 +83,15 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             
             #######################
             ### build graph
-            pairwise_data = Data(x=sol_00, y=sol_01, edge_index=cells_00.T, pos=points_00)
-            torch.save(pairwise_data, osp.join(ml_data_dir, f"pairwise_data_{i_time_step:05d}.pt"))
             i_deposit = deposit_pairs[i_sample,0]
             lag = 1
             i_deposit -= lag
             laser_center = np.array([toolpath[i_deposit,1], toolpath[i_deposit,2], toolpath[i_deposit,3]])
             centeroids_00 = np.mean(points_00[cells_00],axis=1)
             
-            heat_info = laser_center-centeroids_00 ###  input laser position      
+            heat_info = laser_center-centeroids_00 ###  input laser position    
+            pairwise_data = Data(x=torch.cat([sol_00, heat_info], dim=1), y=sol_01, edge_index=cells_00.T, pos=points_00)
+            torch.save(pairwise_data, osp.join(ml_data_dir, f"pairwise_data_{i_time_step:05d}.pt"))  
             
             ###### summary
             ###### input node attribude: input temperature, point coordinates, heat_info

@@ -6,22 +6,28 @@ import multiprocessing as mp
 
 class GraphDataset(Dataset):
     def __init__(self, root, model_name, bjorn=True, transform=None, pre_transform=None):
+        self.root = root
         self.model_name = model_name
+        self.raw_data_dir = os.path.join(root, "bjorn", "small_10_base_20")
         self.bjorn = bjorn
+        self.processed_data_dir = os.path.join(self.root, "ml_data", self.model_name)
         # self.preprocess_graph_data = preprocess_graph_data
-        super(GraphDataset, self).__init__(root, transform, pre_transform)
+        # super(GraphDataset, self).__init__(root, transform, pre_transform)
         # self.data, self.slices = torch.load(self.processed_paths[0])
-        self.processed_dir = os.path.join(self.root, "ml_data", self.model_name)
         if not self.is_processed:
             self.process()
 
     @property
     def processed_file_names(self):
-        return os.listdir(self.processed_dir)
+        return os.listdir(self.processed_data_dir)
     
     @property
     def is_processed(self):
         return os.path.isdir(self.processed_dir)
+    
+    @property
+    def raw_file_names(self):
+        return os.listdir(self.raw_data_dir)
 
     def download(self):
         # Download to `self.raw_dir`.

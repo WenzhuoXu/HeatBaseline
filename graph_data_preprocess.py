@@ -58,12 +58,43 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
 
             cells_00 = mesh_00.cells_dict['hexahedron'] ### input cells
             points_00 = mesh_00.points 
+            num_points_00 = points_00.shape[0]
             if bjorn:
                 points_00 /= 1e3
             points_00[points_00[:,2]<0,2] = points_00[points_00[:,2]<0,2]*ratio ### input point coordinates
 
+            centeroids_00 = np.mean(points_00[cells_00],axis=1)
+            edges_00 = []
+            for i in range(cells_00.shape[0]):
+                for j in range(cells_00.shape[1]):
+                    if i==j:
+                        continue
+
+                    arr_1 = cells_00[i]
+                    arr_2 = cells_00[j]
+                    matching_elements = np.array([element for element in arr_1 if element in arr_2])
+                    if len(matching_elements)>=2:
+                        edges_00.append(np.array([i,j]))
+
+            edges_00 = np.array(edges_00, dtype=np.int32)
+            edges_00 = torch.tensor(edges_00)
+
             if bjorn:
-                sol_00_center = np.expand_dims(mesh_00.cell_data['T'][0],axis=1) ### input temperature for each cells
+                sol_00_center = np.expand_dims(mesh_00.cell_data['T'][0].astype(np.float32), axis=1) ### input temperature for each cells
+                sol_00_center = torch.tensor(sol_00_center)
+                # sol_00 = np.copy(sol_00_center)
+                # average cell temperature by the number of nodes in the cell, and add the temperature to the node.
+                # sol_00_center = torch.tensor(sol_00_center)
+                # sol_00 = np.zeros(num_points_00)
+                # sol_00_average_count = np.zeros(num_points_00)
+                
+                # for i in range(cells_00.shape[0]):
+                #     for j in range(cells_00.shape[1]):
+                #         sol_00[cells_00[i,j]] += sol_00_center[i]
+                #         sol_00_average_count[cells_00[i,j]] += 1
+
+                # sol_00 /= sol_00_average_count
+                # sol_00 = torch.from_numpy(sol_00).float()
             else:
                 sol_00 = mesh_00.point_data['sol']
                 sol_00_center = np.mean(sol_00[cells_00],axis=1)
@@ -71,12 +102,37 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             cells_01 = mesh_01.cells_dict['hexahedron'] ### output cells, note that there is a new activated element in the output mesh
                                                         ### build graph based on the input mesh
             points_01 = mesh_01.points
+            num_points_01 = points_01.shape[0]
             if bjorn:
                 points_01 /= 1e3
             points_01[points_01[:,2]<0,2] = points_01[points_01[:,2]<0,2]*ratio ### output point coordinates
+            centeroids_01 = np.mean(points_01[cells_01],axis=1)
+            edges_01 = []
+            for i in range(cells_01.shape[0]):
+                for j in range(cells_01.shape[1]):
+                    arr_1 = cells_01[i]
+                    arr_2 = cells_01[j]
+                    matching_elements = [element for element in arr_1 if element in arr_2]
+                    if len(matching_elements)>=2:
+                        edges_01.append(np.array([i,j]))
+
+            edges_01 = np.array(edges_01, dtype=np.int32)
 
             if bjorn:
-                sol_01_center = np.expand_dims(mesh_01.cell_data['T'][0],axis=1) ### output temperature for each cells
+                sol_01_center = np.expand_dims(mesh_01.cell_data['T'][0].astype(np.float32), axis=1) ### output temperature for each cells
+                sol_01_center = torch.tensor(sol_01_center)
+                # sol_01 = np.copy(sol_01_center)
+                # sol_01_center = torch.tensor(sol_01_center)
+                # sol_01 = np.zeros(num_points_01)
+                # sol_01_average_count = np.zeros(num_points_01)
+                
+                # for i in range(cells_01.shape[0]):
+                #     for j in range(cells_01.shape[1]):
+                #         sol_01[cells_01[i,j]] += sol_01_center[i]
+                #         sol_01_average_count[cells_01[i,j]] += 1
+
+                # sol_01 /= sol_01_average_count
+                # sol_01 = torch.from_numpy(sol_01).float()
             else:
                 sol_01 = mesh_01.point_data['sol']
                 sol_01_center = np.mean(sol_01[cells_01],axis=1)
@@ -89,8 +145,9 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             laser_center = np.array([toolpath[i_deposit,1], toolpath[i_deposit,2], toolpath[i_deposit,3]])
             centeroids_00 = np.mean(points_00[cells_00],axis=1)
             
-            heat_info = laser_center-centeroids_00 ###  input laser position    
-            pairwise_data = Data(x=torch.cat([sol_00, heat_info], dim=1), y=sol_01, edge_index=cells_00.T, pos=points_00)
+            heat_info = laser_center-centeroids_00 ###  input laser position   
+            heat_info = torch.tensor(heat_info)
+            pairwise_data = Data(x=torch.cat([sol_00_center, heat_info], dim=1), y=sol_01_center, edge_index=edges_00.t().contiguous(), pos=centeroids_00)
             torch.save(pairwise_data, osp.join(ml_data_dir, f"pairwise_data_{i_time_step:05d}.pt"))  
             
             ###### summary

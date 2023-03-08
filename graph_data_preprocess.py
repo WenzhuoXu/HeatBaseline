@@ -73,7 +73,7 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
                     arr_1 = cells_00[i]
                     arr_2 = cells_00[j]
                     matching_elements = np.array([element for element in arr_1 if element in arr_2])
-                    if len(matching_elements)>=2:
+                    if len(matching_elements)>=3:
                         edges_00.append(np.array([i,j]))
 
             edges_00 = np.array(edges_00, dtype=np.int32)

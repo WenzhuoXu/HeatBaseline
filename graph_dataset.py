@@ -16,6 +16,10 @@ class GraphDataset(Dataset):
         # self.data, self.slices = torch.load(self.processed_paths[0])
         if not self.is_processed:
             self.process()
+        # self.data_list = os.listdir(self.processed_data_dir)
+
+    def len(self) -> int:
+        return len(self.processed_file_names)
 
     @property
     def processed_file_names(self):

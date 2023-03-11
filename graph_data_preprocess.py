@@ -66,7 +66,7 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             centeroids_00 = np.mean(points_00[cells_00],axis=1)
             edges_00 = []
             for i in range(cells_00.shape[0]):
-                for j in range(cells_00.shape[1]):
+                for j in range(cells_00.shape[0]):
                     if i==j:
                         continue
 
@@ -147,6 +147,7 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             
             heat_info = laser_center-centeroids_00 ###  input laser position   
             heat_info = torch.tensor(heat_info)
+            centeroids_00 = torch.tensor(centeroids_00)
             pairwise_data = Data(x=torch.cat([sol_00_center, heat_info], dim=1), y=sol_01_center, edge_index=edges_00.t().contiguous(), pos=centeroids_00)
             torch.save(pairwise_data, osp.join(ml_data_dir, f"pairwise_data_{i_time_step:05d}.pt"))  
             

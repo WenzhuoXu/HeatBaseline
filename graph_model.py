@@ -1,5 +1,6 @@
 import torch
 import torch_geometric.nn as pyg_nn
+# import multiprocessing as mp
 
 
 class GraphNet(torch.nn.Module):
@@ -18,7 +19,7 @@ class GraphNet(torch.nn.Module):
             norm = pyg_nn.LayerNorm(hidden_dim)
             act = torch.nn.LeakyReLU()
 
-            layer = pyg_nn.DeepGCNLayer(conv, norm, act, dropout)
+            layer = pyg_nn.DeepGCNLayer(conv, norm, act)
             self.convs.append(layer)
 
         self.output_layer = pyg_nn.GENConv(hidden_dim, output_dim)
@@ -26,10 +27,10 @@ class GraphNet(torch.nn.Module):
     def forward(self, data):
         x, edge_index, pos = data.x, data.edge_index, data.pos
         x_node = self.node_feature_process(x)
-        x_element = self.element_feature_process(data.pos)
+        x_element = self.element_feature_process(pos)
         x = torch.add(x_node, x_element)
-        for i in range(self.num_layers):
-            x = self.convs[i](x, edge_index, pos)
-        x = self.output_layer(x, edge_index, pos)
+        for conv in self.convs:
+            x = conv(x.float(), edge_index)
+        x = self.output_layer(x, edge_index)
         return x
         

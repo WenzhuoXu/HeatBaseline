@@ -1,7 +1,7 @@
 import os
 
 from graph_dataset import GraphDataset
-from torch_geometric.data import DataLoader
+from torch_geometric.loader import DataLoader
 from graph_model import GraphNet
 import torch
 
@@ -10,11 +10,13 @@ from torch.utils.tensorboard import SummaryWriter
 
 if __name__ == '__main__':
     dataset = GraphDataset(root='d:/Work/research/data/hammer', model_name='hollow_1')
-    loader = DataLoader(dataset, batch_size=32, shuffle=False)
-    test_dataset = GraphDataset(root='d:/Work/research/data/hammer', model_name='hollow_2')
-    test_loader = DataLoader(test_dataset, batch_size=32, shuffle=False)
+    train_dataset = dataset[:int(len(dataset) * 0.8)]
+    val_dataset = dataset[int(len(dataset) * 0.8):]
+    loader = DataLoader(train_dataset, batch_size=32, shuffle=False)
+    # test_dataset = GraphDataset(root='d:/Work/research/data/hammer', model_name='hollow_2')
+    test_loader = DataLoader(val_dataset, batch_size=32, shuffle=False)
 
-    model = GraphNet(input_dim_node=1, input_dim_element=2, hidden_dim=8, output_dim=1, num_layers=5, dropout=0.1)
+    model = GraphNet(input_dim_node=4, input_dim_element=3, hidden_dim=8, output_dim=1, num_layers=5, dropout=0.1)
     optimizer = torch.optim.Adam(model.parameters(), lr=1e-4)
     # model.train()
 

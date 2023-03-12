@@ -13,7 +13,9 @@ from torch_geometric.data import Data
 
 # data_dir = os.path.join(Path.home(), 'data','hammer') 
 
-def preprocess_graph_data(data_dir, model_name,bjorn=True):
+def preprocess_graph_data(model_name):
+    data_dir = 'd:/Work/research/data/hammer'
+    bjorn = True
     problem_name = "small_10_base_20"
     femfile_dir = osp.join(data_dir,"meshes","extend_base_bjorn",problem_name)
     if bjorn:
@@ -41,7 +43,7 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
     for i in range(whole_cells.shape[0]):
         for j in range(whole_cells.shape[0]):
             if i==j:
-                    continue
+                continue
 
             arr_1 = whole_cells[i]
             arr_2 = whole_cells[j]
@@ -49,8 +51,8 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             if len(matching_elements)>=3:
                 edges.append(np.array([i,j]))
 
-        edges = np.array(edges)
-        edge_index = torch.tensor(edges).long().t().contiguous()
+    edges = np.array(edges)
+    edge_index = torch.tensor(edges).long().t().contiguous()
 
     centeroids = np.mean(whole_points[whole_cells], axis=1)
     num_points = centeroids.shape[0]
@@ -86,6 +88,8 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             T_output = np.zeros(num_points)
             # get matching global index
             global_index_00 = match_global_and_local_cell_index(whole_cells, whole_points, cells_00, points_00)
+            # convert to int type
+            global_index_00 = global_index_00.astype(np.int32)
 
             if bjorn:
                 sol_00_center = np.expand_dims(mesh_00.cell_data['T'][0].astype(np.float32), axis=1) ### input temperature for each cells
@@ -104,6 +108,7 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             points_01[points_01[:,2]<0,2] = points_01[points_01[:,2]<0,2]*ratio ### output point coordinates
             
             global_index_01 = match_global_and_local_cell_index(whole_cells, whole_points, cells_01, points_01)
+            global_index_01 = global_index_01.astype(np.int32)
 
             if bjorn:
                 sol_01_center = np.expand_dims(mesh_01.cell_data['T'][0].astype(np.float32), axis=1) ### output temperature for each cells
@@ -159,9 +164,14 @@ def match_global_and_local_cell_index(whole_cells, whole_points, cells_00, point
     base_depth = 50e-3
 
     # output global index of local cells by matching the coordinate of points
-    cells_00_global = np.zeros(cells_00.shape, dtype=np.int32)
+    cells_00_global = []
     for i in range(cells_00.shape[0]):
-        cells_00_global[i] = np.where(np.all(whole_points[whole_cells]==points_00[cells_00[i]], axis=1))[0]
+        for j in range(whole_cells.shape[0]):
+            if np.all(whole_points[whole_cells[j]]==points_00[cells_00[i]]):
+                cells_00_global.append(j)
+                break
+    
+    cells_00_global = np.array(cells_00_global)
 
     # return cells_00_global
     return cells_00_global

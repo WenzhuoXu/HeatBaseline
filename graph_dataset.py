@@ -10,6 +10,7 @@ class GraphDataset(Dataset):
         self.transforms = transform
         self.root = root
         self.model_name = model_name
+        self.model_name_list = ["hollow_1", "hollow_2", "hollow_3", "hollow_4", "hollow_5", "hollow_7", "townhouse_2", "townhouse_3", "townhouse_5", "townhouse_6", "townhouse_7"]
         self.raw_data_dir = os.path.join(root, "bjorn", "small_10_base_20")
         self.bjorn = bjorn
         self.processed_data_dir = os.path.join(self.root, "ml_data", self.model_name)
@@ -42,7 +43,9 @@ class GraphDataset(Dataset):
 
     def process(self):
         # Read data into huge `Data` list.
-        preprocess_graph_data(self.root, self.model_name, self.bjorn)
+        for model_name in self.model_name_list:
+            preprocess_graph_data(self.root, model_name, self.bjorn)
+        # preprocess_graph_data(self.root, self.model_name, self.bjorn)
 
     def __repr__(self):
         return '{}({})'.format(self.model_name, len(self))

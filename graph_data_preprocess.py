@@ -33,7 +33,27 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
     path_dx = fem_file["dx"]
     if bjorn:
         whole_cells = fem_file["hexahedra"]
+        whole_points = fem_file["vertices"]
         num_base = whole_cells.shape[0]-toolpath.shape[0]
+
+    edges = []
+
+    for i in range(whole_cells.shape[0]):
+        for j in range(whole_cells.shape[0]):
+            if i==j:
+                    continue
+
+            arr_1 = whole_cells[i]
+            arr_2 = whole_cells[j]
+            matching_elements = np.array([element for element in arr_1 if element in arr_2])
+            if len(matching_elements)>=3:
+                edges.append(np.array([i,j]))
+
+        edges = np.array(edges)
+        edge_index = torch.tensor(edges).long().t().contiguous()
+
+    centeroids = np.mean(whole_points[whole_cells], axis=1)
+    num_points = centeroids.shape[0]
 
     #base_depth = fem_file["base_depth"]
     base_depth = 50e-3
@@ -58,43 +78,20 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
 
             cells_00 = mesh_00.cells_dict['hexahedron'] ### input cells
             points_00 = mesh_00.points 
-            num_points_00 = points_00.shape[0]
             if bjorn:
                 points_00 /= 1e3
             points_00[points_00[:,2]<0,2] = points_00[points_00[:,2]<0,2]*ratio ### input point coordinates
 
-            centeroids_00 = np.mean(points_00[cells_00],axis=1)
-            edges_00 = []
-            for i in range(cells_00.shape[0]):
-                for j in range(cells_00.shape[0]):
-                    if i==j:
-                        continue
-
-                    arr_1 = cells_00[i]
-                    arr_2 = cells_00[j]
-                    matching_elements = np.array([element for element in arr_1 if element in arr_2])
-                    if len(matching_elements)>=3:
-                        edges_00.append(np.array([i,j]))
-
-            edges_00 = np.array(edges_00, dtype=np.int32)
-            edges_00 = torch.tensor(edges_00)
+            T_input = np.zeros(num_points)
+            T_output = np.zeros(num_points)
+            # get matching global index
+            global_index_00 = match_global_and_local_cell_index(whole_cells, whole_points, cells_00, points_00)
 
             if bjorn:
                 sol_00_center = np.expand_dims(mesh_00.cell_data['T'][0].astype(np.float32), axis=1) ### input temperature for each cells
                 sol_00_center = torch.tensor(sol_00_center)
-                # sol_00 = np.copy(sol_00_center)
-                # average cell temperature by the number of nodes in the cell, and add the temperature to the node.
-                # sol_00_center = torch.tensor(sol_00_center)
-                # sol_00 = np.zeros(num_points_00)
-                # sol_00_average_count = np.zeros(num_points_00)
-                
-                # for i in range(cells_00.shape[0]):
-                #     for j in range(cells_00.shape[1]):
-                #         sol_00[cells_00[i,j]] += sol_00_center[i]
-                #         sol_00_average_count[cells_00[i,j]] += 1
-
-                # sol_00 /= sol_00_average_count
-                # sol_00 = torch.from_numpy(sol_00).float()
+                # store the input temperature in T_input by global index
+                T_input[global_index_00] = sol_00_center
             else:
                 sol_00 = mesh_00.point_data['sol']
                 sol_00_center = np.mean(sol_00[cells_00],axis=1)
@@ -102,40 +99,24 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             cells_01 = mesh_01.cells_dict['hexahedron'] ### output cells, note that there is a new activated element in the output mesh
                                                         ### build graph based on the input mesh
             points_01 = mesh_01.points
-            num_points_01 = points_01.shape[0]
             if bjorn:
                 points_01 /= 1e3
             points_01[points_01[:,2]<0,2] = points_01[points_01[:,2]<0,2]*ratio ### output point coordinates
-            centeroids_01 = np.mean(points_01[cells_01],axis=1)
-            edges_01 = []
-            for i in range(cells_01.shape[0]):
-                for j in range(cells_01.shape[1]):
-                    arr_1 = cells_01[i]
-                    arr_2 = cells_01[j]
-                    matching_elements = [element for element in arr_1 if element in arr_2]
-                    if len(matching_elements)>=2:
-                        edges_01.append(np.array([i,j]))
-
-            edges_01 = np.array(edges_01, dtype=np.int32)
+            
+            global_index_01 = match_global_and_local_cell_index(whole_cells, whole_points, cells_01, points_01)
 
             if bjorn:
                 sol_01_center = np.expand_dims(mesh_01.cell_data['T'][0].astype(np.float32), axis=1) ### output temperature for each cells
                 sol_01_center = torch.tensor(sol_01_center)
-                # sol_01 = np.copy(sol_01_center)
-                # sol_01_center = torch.tensor(sol_01_center)
-                # sol_01 = np.zeros(num_points_01)
-                # sol_01_average_count = np.zeros(num_points_01)
-                
-                # for i in range(cells_01.shape[0]):
-                #     for j in range(cells_01.shape[1]):
-                #         sol_01[cells_01[i,j]] += sol_01_center[i]
-                #         sol_01_average_count[cells_01[i,j]] += 1
+                # store the output temperature in T_output by global index
+                T_output[global_index_01] = sol_01_center
 
-                # sol_01 /= sol_01_average_count
-                # sol_01 = torch.from_numpy(sol_01).float()
             else:
                 sol_01 = mesh_01.point_data['sol']
                 sol_01_center = np.mean(sol_01[cells_01],axis=1)
+
+            T_input = torch.tensor(T_input)
+            T_output = torch.tensor(T_output)
             
             #######################
             ### build graph
@@ -146,10 +127,12 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             centeroids_00 = np.mean(points_00[cells_00],axis=1)
             
             heat_info = laser_center-centeroids_00 ###  input laser position   
-            heat_info = torch.tensor(heat_info)
-            centeroids_00 = torch.tensor(centeroids_00)
-            pairwise_data = Data(x=torch.cat([sol_00_center, heat_info], dim=1), y=sol_01_center, edge_index=edges_00.t().contiguous(), pos=centeroids_00)
-            torch.save(pairwise_data, osp.join(ml_data_dir, f"pairwise_data_{i_time_step:05d}.pt"))  
+            heat_info_global = np.zeros(num_points)
+            heat_info_global[global_index_00] = heat_info
+            heat_info_global = torch.tensor(heat_info_global)
+
+            pairwise_data = Data(x=torch.cat([T_input, heat_info], dim=1), y=T_output, edge_index=edge_index, pos=centeroids)
+            torch.save(pairwise_data, osp.join(ml_data_dir, f"model_{model_name}_problem_{problem_name}_{i_time_step}.pt"))
             
             ###### summary
             ###### input node attribude: input temperature, point coordinates, heat_info
@@ -158,7 +141,7 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             
 
           
-def match_global_and_local_cell_index(fem_file, vtk_path_00, vtk_path_01, bjorn=True):
+def match_global_and_local_cell_index(whole_cells, whole_points, cells_00, points_00):
     # problem_name = "small_10_base_20"
     # femfile_dir = osp.join(data_dir,"meshes","extend_base_bjorn",problem_name)
     # if bjorn:
@@ -171,26 +154,17 @@ def match_global_and_local_cell_index(fem_file, vtk_path_00, vtk_path_01, bjorn=
 
     # fem_file = pickle.load( open( osp.join(femfile_dir, model_name+".p"), "rb" ) ) 
 
-    voxel_inds, deposit_sequence, toolpath = fem_file["voxel_inds"], fem_file["deposit_sequence"], fem_file["toolpath"]
-    dx = fem_file["dx"]
-    nx = fem_file["nx"]
-    Add_base = fem_file["Add_base"]
-    path_dx = fem_file["dx"]
-    if bjorn:
-        whole_cells = fem_file["hexahedra"]
-        num_base = whole_cells.shape[0]-toolpath.shape[0]
-
+    # global cell index
     #base_depth = fem_file["base_depth"]
     base_depth = 50e-3
-    ratio = np.abs(np.min(fem_file["vertices"][:,2]))/base_depth
 
-    deposit_pairs = fem_file["deposit_pairs"]
+    # output global index of local cells by matching the coordinate of points
+    cells_00_global = np.zeros(cells_00.shape, dtype=np.int32)
+    for i in range(cells_00.shape[0]):
+        cells_00_global[i] = np.where(np.all(whole_points[whole_cells]==points_00[cells_00[i]], axis=1))[0]
 
-    mesh_00 = meshio.read(vtk_path_00)
-    mesh_01 = meshio.read(vtk_path_01)
-
-    cells_00 = mesh_00.cells_dict['hexahedron'] ### input cells
-    points_00 = mesh_00.points 
+    # return cells_00_global
+    return cells_00_global
 
 
 if __name__ == "__main__":

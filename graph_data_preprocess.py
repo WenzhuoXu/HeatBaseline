@@ -158,5 +158,51 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
             
 
           
-                
-    
+def match_global_and_local_cell_index(fem_file, vtk_path_00, vtk_path_01, bjorn=True):
+    # problem_name = "small_10_base_20"
+    # femfile_dir = osp.join(data_dir,"meshes","extend_base_bjorn",problem_name)
+    # if bjorn:
+    #     vtk_dir = osp.join(data_dir,"vtk",'bjorn_fem',problem_name, model_name,'vtk')
+    # else:    
+    #     vtk_dir = osp.join(data_dir,"vtk",problem_name, model_name)
+
+    # ml_data_dir = osp.join(data_dir,"ml_data",model_name)
+    # os.makedirs(ml_data_dir, exist_ok=True)
+
+    # fem_file = pickle.load( open( osp.join(femfile_dir, model_name+".p"), "rb" ) ) 
+
+    voxel_inds, deposit_sequence, toolpath = fem_file["voxel_inds"], fem_file["deposit_sequence"], fem_file["toolpath"]
+    dx = fem_file["dx"]
+    nx = fem_file["nx"]
+    Add_base = fem_file["Add_base"]
+    path_dx = fem_file["dx"]
+    if bjorn:
+        whole_cells = fem_file["hexahedra"]
+        num_base = whole_cells.shape[0]-toolpath.shape[0]
+
+    #base_depth = fem_file["base_depth"]
+    base_depth = 50e-3
+    ratio = np.abs(np.min(fem_file["vertices"][:,2]))/base_depth
+
+    deposit_pairs = fem_file["deposit_pairs"]
+
+    mesh_00 = meshio.read(vtk_path_00)
+    mesh_01 = meshio.read(vtk_path_01)
+
+    cells_00 = mesh_00.cells_dict['hexahedron'] ### input cells
+    points_00 = mesh_00.points 
+
+
+if __name__ == "__main__":
+    data_dir = "D:/Work/research/data/hammer"
+    model_name = "hollow_1"
+    problem_name = "small_10_base_20"
+    femfile_dir = osp.join(data_dir,"meshes","extend_base_bjorn",problem_name)
+    vtk_dir = osp.join(data_dir,"vtk",'bjorn_fem',problem_name, model_name,'vtk')
+    # ml_data_dir = osp.join(data_dir,"ml_data",model_name)
+    # os.makedirs(ml_data_dir, exist_ok=True)
+
+    fem_file = pickle.load( open( osp.join(femfile_dir, model_name+".p"), "rb" ) ) 
+    vtk_path_00 = osp.join(vtk_dir, f"vtk_{0:05d}.vtk")
+    vtk_path_01 = osp.join(vtk_dir, f"vtk_{1:05d}.vtk")
+    match_global_and_local_cell_index(fem_file, vtk_path_00, vtk_path_01, bjorn=True)

@@ -7,7 +7,7 @@ import multiprocessing as mp
 class GraphDataset(Dataset):
     def __init__(self, root, model_name, bjorn=True, transform=None, pre_transform=None):
         self._indices = None
-        self.transform = transform
+        self.transforms = transform
         self.root = root
         self.model_name = model_name
         self.raw_data_dir = os.path.join(root, "bjorn", "small_10_base_20")
@@ -29,8 +29,8 @@ class GraphDataset(Dataset):
     
     @property
     def is_processed(self):
-        return os.path.isdir(self.processed_dir)
-        # return True
+        # return os.path.isdir(self.processed_dir)
+        return True
     
     @property
     def raw_file_names(self):
@@ -47,6 +47,14 @@ class GraphDataset(Dataset):
     def __repr__(self):
         return '{}({})'.format(self.model_name, len(self))
     
+    def transform(self, data):
+        # normalize data using mean and std of x
+        data.x[0] = (data.x[0] - data.x[0].mean()) / data.x[0].std()
+        data.y = (data.y - data.x.mean()) / data.x.std()
+        return data
+    
     def get(self, idx: int):
         data = torch.load(os.path.join(self.processed_data_dir, self.processed_file_names[idx]))
+        if self.transforms:
+            data = self.transform(data)
         return data

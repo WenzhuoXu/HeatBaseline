@@ -25,7 +25,7 @@ class GraphNet(torch.nn.Module):
         self.output_layer = pyg_nn.GENConv(hidden_dim, output_dim)
 
     def forward(self, data):
-        x, edge_index, pos = data.x, data.edge_index, data.pos
+        x, edge_index, pos = data.x, data.edge_index.long(), data.pos
         x_node = self.node_feature_process(x)
         x_element = self.element_feature_process(pos)
         x = torch.add(x_node, x_element)

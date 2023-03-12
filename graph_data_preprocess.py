@@ -21,16 +21,16 @@ def preprocess_graph_data(data_dir, model_name,bjorn=True):
     else:    
         vtk_dir = osp.join(data_dir,"vtk",problem_name, model_name)
 
-    ml_data_dir = osp.join(data_dir,"ml_data",model_name)
+    ml_data_dir = osp.join(data_dir,"ml_data")
     os.makedirs(ml_data_dir, exist_ok=True)
 
     fem_file = pickle.load( open( osp.join(femfile_dir, model_name+".p"), "rb" ) ) 
 
     voxel_inds, deposit_sequence, toolpath = fem_file["voxel_inds"], fem_file["deposit_sequence"], fem_file["toolpath"]
-    dx = fem_file["dx"]
-    nx = fem_file["nx"]
-    Add_base = fem_file["Add_base"]
-    path_dx = fem_file["dx"]
+    # dx = fem_file["dx"]
+    # nx = fem_file["nx"]
+    # Add_base = fem_file["Add_base"]
+    # path_dx = fem_file["dx"]
     if bjorn:
         whole_cells = fem_file["hexahedra"]
         whole_points = fem_file["vertices"]
